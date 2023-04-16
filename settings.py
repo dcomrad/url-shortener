@@ -6,6 +6,7 @@ class Config(BaseSettings):
     SQLALCHEMY_TRACK_MODIFICATIONS: bool
     SECRET_KEY: str
     SQLALCHEMY_ECHO: bool
+    JSON_AS_ASCII: bool
 
 
 config = Config()
