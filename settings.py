@@ -7,3 +7,5 @@ class Config(object):
     SQLALCHEMY_TRACK_MODIFICATIONS = True if os.getenv('DEBUG_MODE', 'False') == 'True' else False
     SQLALCHEMY_ECHO = True if os.getenv('DEBUG_MODE', 'False') == 'True' else False
     JSON_AS_ASCII = False
+    ORIGINAL_LINK_LENGTH = 512
+    SHORT_ID_LENGTH = 16

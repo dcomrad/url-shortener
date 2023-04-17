@@ -1,23 +1,26 @@
 from flask import jsonify, request
 
-from . import app, db
+from . import app
 from .error_handlers import InvalidAPIUsageError
+from .exceptions import (BadIDException, BadOriginalLinkException,
+                         NotUniqueIDException)
 from .models import URLMap
-from .utils import check_short_id, get_unique_short_id, is_unique
 
 
 class Messages:
-    NOT_FOUND = 'Указанный id не найден'
+    EMPTY_REQUEST = 'Отсутствует тело запроса'
     LACK_OF_DEMANDED_FIELD = '"url" является обязательным полем!'
     BAD_ID = 'Указано недопустимое имя для короткой ссылки'
-    EMPTY_REQUEST = 'Отсутствует тело запроса'
     NOT_UNIQUE_ID = 'Имя "{}" уже занято.'
+    NOT_FOUND = 'Указанный id не найден'
+    BAD_ORIGINAL_LINK = 'Ссылка "{}" не является URL'
 
 
 @app.route('/api/id/<string:short_id>/', methods=['GET'])
 def get_original(short_id: str):
-    urlmap = URLMap.query.filter_by(short=short_id).first()
-    if not urlmap:
+    try:
+        urlmap = URLMap.get(short_id)
+    except BadIDException:
         raise InvalidAPIUsageError(Messages.NOT_FOUND, 404)
 
     return jsonify({'url': urlmap.original}), 200
@@ -29,22 +32,20 @@ def add_short():
 
     if not data:
         raise InvalidAPIUsageError(Messages.EMPTY_REQUEST)
-
     if not data.get('url'):
         raise InvalidAPIUsageError(Messages.LACK_OF_DEMANDED_FIELD)
 
-    if data.get('custom_id') and not check_short_id(data.get('custom_id')):
+    try:
+        urlmap = URLMap.add(data.get('url'), data.get('custom_id'))
+    except BadIDException:
         raise InvalidAPIUsageError(Messages.BAD_ID, 400)
-
-    if data.get('custom_id') and not is_unique(data.get('custom_id')):
+    except NotUniqueIDException:
         raise InvalidAPIUsageError(
             Messages.NOT_UNIQUE_ID.format(data.get('custom_id')), 400
         )
+    except BadOriginalLinkException:
+        raise InvalidAPIUsageError(
+            Messages.BAD_ORIGINAL_LINK.format(data.get('url')), 400
+        )
 
-    data['custom_id'] = data.get('custom_id') or get_unique_short_id()
-
-    urlmap = URLMap()
-    urlmap.from_dict(data)
-    db.session.add(urlmap)
-    db.session.commit()
     return jsonify(urlmap.to_dict(request.host_url)), 201
